@@ -1,0 +1,13 @@
+{
+  "name": "Startup Tycoon",
+  "short_name": "Tycoon",
+  "description": "Student-built startup simulation inspired by the Hult Prize mission.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#150007",
+  "theme_color": "#292563",
+  "icons": [
+    { "src": "favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}
