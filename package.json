@@ -4,7 +4,7 @@
   "private": true,
   "description": "Student-built startup simulation inspired by the Hult Prize mission. Static site, no build step.",
   "scripts": {
-    "test": "node --test tests/engine.test.js",
+    "test": "node --test tests/engine.test.js tests/arabic.test.js",
     "start": "npx serve ."
   }
 }

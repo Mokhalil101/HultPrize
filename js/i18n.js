@@ -1,4 +1,4 @@
-/* Startup Tycoon — UI translations (separate from game logic). Game scenarios are English-only in this release. */
+/* Startup Tycoon — translations. UI strings: dictionary below. Game text: js/ar-*.js (separate from game logic). */
 (function (g) {
   const T = {
     en: {
@@ -22,7 +22,22 @@
       disclaimer: "تجربة ريادة أعمال تفاعلية من تطوير طلاب، مستوحاة من رسالة جائزة هلت. ليست منتجاً رسمياً لجائزة هلت."
     }
   };
+  let lang = "en";
+  function setLang(l) { lang = l === "ar" ? "ar" : "en"; }
+  function tr(k, l) { l = l || lang; return (T[l] && T[l][k]) || T.en[k] || k; }
+  // m(): translate a message template keyed by its English text; {0},{1} are replaced by the arguments.
+  function m(en) {
+    const args = Array.prototype.slice.call(arguments, 1);
+    const tpl = (lang === "ar" && g.ST.AR_MSG && g.ST.AR_MSG[en]) || en;
+    return String(tpl).replace(/\{(\d+)\}/g, (_, i) => (args[i] === undefined ? "" : args[i]));
+  }
+  // data(): Arabic text for a data-table entry (challenges, models, roles...), falling back to the English field.
+  function data(kind, id, field, fallback) {
+    if (lang !== "ar") return fallback;
+    const A = g.ST.AR, x = A && A.data && A.data[kind] && A.data[kind][id];
+    return x && x[field] !== undefined ? x[field] : fallback;
+  }
   g.ST = g.ST || {};
-  g.ST.I18n = { t: (k, lang) => (T[lang] && T[lang][k]) || T.en[k] || k, langs: Object.keys(T) };
+  g.ST.I18n = { t: (k, l) => tr(k, l), m, data, setLang, getLang: () => lang, langs: Object.keys(T) };
   if (typeof module !== "undefined") module.exports = g.ST.I18n;
 })(typeof window !== "undefined" ? window : globalThis);

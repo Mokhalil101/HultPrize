@@ -1,6 +1,6 @@
 /* Startup Tycoon service worker: cache the app shell so the game works offline after the first visit. */
-const VERSION = "startup-tycoon-v1";
-const ASSETS = ["./", "./index.html", "./css/style.css", "./js/data.js", "./js/engine.js", "./js/save.js", "./js/i18n.js", "./js/ui.js", "./manifest.webmanifest", "./favicon.svg"];
+const VERSION = "startup-tycoon-v4";
+const ASSETS = ["./", "./index.html", "./css/style.css", "./js/data.js", "./js/engine.js", "./js/save.js", "./js/i18n.js", "./js/ui.js", "./js/ar-data.js", "./js/ar-decisions-1.js", "./js/ar-decisions-2.js", "./js/ar-decisions-3.js", "./js/ar-events.js", "./js/ar-events-2.js", "./js/ar-msg-1.js", "./js/ar-msg-2.js", "./manifest.webmanifest", "./favicon.svg", "./icons/icon-192.png", "./icons/icon-512.png", "./icons/icon-maskable-512.png"];
 
 self.addEventListener("install", e => { e.waitUntil(caches.open(VERSION).then(c => c.addAll(ASSETS))); });
 self.addEventListener("activate", e => {

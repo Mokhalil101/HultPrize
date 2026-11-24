@@ -20,9 +20,52 @@
   }
   function pick(s, arr) { return arr[Math.floor(rand(s) * arr.length)]; }
 
+  // ---------- language support (texts live in data.js for English and ar-*.js for Arabic) ----------
+  let LANG = "en";
+  function setLang(l) { LANG = l === "ar" ? "ar" : "en"; if (g.ST.I18n) g.ST.I18n.setLang(LANG); }
+  function M(en) {
+    const args = Array.prototype.slice.call(arguments, 1);
+    if (g.ST.I18n) return g.ST.I18n.m.apply(null, [en].concat(args));
+    return en.replace(/\{(\d+)\}/g, (_, i) => (args[i] === undefined ? "" : args[i]));
+  }
+  const fmtN = n => Math.round(n).toLocaleString("en-US");
+  function AR(kind, id) { const A = g.ST.AR; return LANG === "ar" && A && A[kind] && A[kind][id] ? A[kind][id] : null; }
+  function arData(kind, id) { const A = g.ST.AR; return LANG === "ar" && A && A.data && A.data[kind] && A.data[kind][id] ? A.data[kind][id] : null; }
   function fill(str, s) {
-    const ch = byId(D.CHALLENGES, s.startup.challengeId);
-    return String(str).replace(/\{s\}/g, s.startup.name).replace(/\{p\}/g, ch ? ch.noun : "the problem");
+    const ch = byId(D.CHALLENGES, s.startup.challengeId), tr = ch && arData("challenges", ch.id);
+    const noun = ch ? (tr && tr.noun) || ch.noun : "the problem";
+    return String(str).replace(/\{s\}/g, s.startup.name).replace(/\{p\}/g, noun);
+  }
+  function decText(s, id, idx) {
+    const d = byId(D.DECISIONS, id); if (!d) return { title: "", scenario: "", choice: "", why: "" };
+    const tr = AR("decisions", id), o = d.options[idx] || {}, to = (tr && tr.options && tr.options[idx]) || {};
+    return { title: fill((tr && tr.title) || d.title, s), scenario: fill((tr && tr.scenario) || d.scenario, s), choice: fill(to.t || o.t || "", s), why: to.why || o.why || "", note: to.note || (o.ctx && o.ctx.note) || null, delayedNote: to.delayedNote || (o.delayed && o.delayed.note) || null };
+  }
+  function evText(s, id, idx) {
+    const e = byId(D.EVENTS, id); if (!e) return { title: "", text: "", choice: "", why: "" };
+    const tr = AR("events", id), o = e.options[idx] || {}, to = (tr && tr.options && tr.options[idx]) || {};
+    return { title: fill((tr && tr.title) || e.title, s), text: fill((tr && tr.text) || e.text, s), choice: to.t || o.t || "", why: to.why || o.why || "", delayedNote: to.delayedNote || (o.delayed && o.delayed.note) || null };
+  }
+  function describeDecision(s, entry) {
+    if (!entry) return null;
+    if (Number.isInteger(entry.idx) && byId(D.DECISIONS, entry.id)) { const x = decText(s, entry.id, entry.idx); return { title: x.title, choice: x.choice, why: x.why }; }
+    return { title: entry.title, choice: entry.choice, why: entry.why };
+  }
+  function describeEvent(s, entry) {
+    if (!entry) return null;
+    if (Number.isInteger(entry.idx) && byId(D.EVENTS, entry.id)) { const x = evText(s, entry.id, entry.idx); return { title: x.title, choice: x.choice, why: x.why }; }
+    return { title: entry.title, choice: entry.choice, why: entry.why };
+  }
+  function lessonText(s, l) {
+    if (l.kind === "decision") { const x = decText(s, l.id, l.idx); return { title: x.title, text: x.why }; }
+    const map = {
+      cash: ["Cash is oxygen", "Profit on paper does not pay salaries. Watch your runway every month and cut early."],
+      satisfaction: ["Customers leave quietly", "Low satisfaction drives churn, which makes growth expensive."],
+      mission: ["Mission drift", "Your social impact stayed low. Spend on impact activities and measure them."],
+      ship: ["Ship something", "Without launching, you cannot learn from real customers."],
+      keep: ["Keep learning", "Your decisions were sound. Next time, try a different challenge or a harder difficulty."]
+    };
+    const m = map[l.kind] || ["", ""]; return { title: M(m[0]), text: M(m[1]) };
   }
 
   // ---------- helpers ----------
@@ -72,12 +115,12 @@
   // ---------- game creation ----------
   function validateSetup(o) {
     const name = (o.founderName || "").trim(), sn = (o.startupName || "").trim();
-    if (!name || name.length > 30) return "Founder name is required (max 30 characters).";
-    if (!sn || sn.length > 40) return "Startup name is required (max 40 characters).";
-    if ((o.description || "").length > 200) return "Description is too long (max 200 characters).";
-    if (!byId(D.CHALLENGES, o.challengeId)) return "Choose a social challenge.";
-    if (!byId(D.MODELS, o.businessModel)) return "Choose a business model.";
-    if (!D.DIFFICULTY[o.difficulty]) return "Choose a difficulty.";
+    if (!name || name.length > 30) return M("Founder name is required (max 30 characters).");
+    if (!sn || sn.length > 40) return M("Startup name is required (max 40 characters).");
+    if ((o.description || "").length > 200) return M("Description is too long (max 200 characters).");
+    if (!byId(D.CHALLENGES, o.challengeId)) return M("Choose a social challenge.");
+    if (!byId(D.MODELS, o.businessModel)) return M("Choose a business model.");
+    if (!D.DIFFICULTY[o.difficulty]) return M("Choose a difficulty.");
     return null;
   }
 
@@ -115,6 +158,8 @@
     let pool = D.DECISIONS.filter(d => d.ch === s.currentChapter && !seen.has(d.id));
     if (!pool.length) pool = D.DECISIONS.filter(d => d.ch >= s.currentChapter - 1 && !seen.has(d.id));
     if (!pool.length) return null;
+    const own = pool.filter(e => e.when && e.when.challenge);
+    if (own.length && rand(s) < 0.4) return pick(s, own).id;
     return pick(s, pool).id;
   }
   function beginMonth(s) { s.decisionPending = pickDecision(s); }
@@ -123,9 +168,10 @@
     if (!s.decisionPending) return null;
     const d = byId(D.DECISIONS, s.decisionPending);
     if (!d) return null;
+    const base = decText(s, d.id, 0);
     return {
-      id: d.id, title: fill(d.title, s), scenario: fill(d.scenario, s), related: d.related, ch: d.ch,
-      options: d.options.map((o, i) => ({ index: i, t: fill(o.t, s), cost: o.cost, risk: o.risk, affordable: s.resources.capital >= o.cost }))
+      id: d.id, title: base.title, scenario: base.scenario, related: d.related, ch: d.ch,
+      options: d.options.map((o, i) => ({ index: i, t: decText(s, d.id, i).choice, cost: o.cost, risk: o.risk, affordable: s.resources.capital >= o.cost }))
     };
   }
   function businessContext(s) {
@@ -134,23 +180,24 @@
   }
 
   function decide(s, decisionId, idx) {
-    if (s.status !== "active") return { error: "The game is not active." };
-    if (!s.decisionPending || s.decisionPending !== decisionId) return { error: "That decision is not available." };
+    if (s.status !== "active") return { error: M("The game is not active.") };
+    if (!s.decisionPending || s.decisionPending !== decisionId) return { error: M("That decision is not available.") };
     const d = byId(D.DECISIONS, decisionId);
-    if (!d || !Number.isInteger(idx) || idx < 0 || idx >= d.options.length) return { error: "Invalid option." };
+    if (!d || !Number.isInteger(idx) || idx < 0 || idx >= d.options.length) return { error: M("Invalid option.") };
     const o = d.options[idx];
-    if (s.resources.capital < o.cost) return { error: "Not enough capital for this option." };
+    if (s.resources.capital < o.cost) return { error: M("Not enough capital for this option.") };
     const before = snap(s);
     s.resources.capital -= o.cost;
+    const tx = decText(s, d.id, idx);
     let mult = 1, note = null;
     if (o.ctx) {
       const cur = o.ctx.stat === "team" ? s.team.length : s.resources[o.ctx.stat];
-      if (cur < o.ctx.min) { mult = o.ctx.mult; note = o.ctx.note; }
+      if (cur < o.ctx.min) { mult = o.ctx.mult; note = tx.note || o.ctx.note; }
     }
     applyFx(s, o.fx, { mult });
-    if (o.delayed) s.pending.push({ month: s.currentMonth + o.delayed.in, fx: o.delayed.fx || {}, cash: o.delayed.cash || 0, note: o.delayed.note || "A delayed effect of an earlier decision." });
+    if (o.delayed) s.pending.push({ month: s.currentMonth + o.delayed.in, fx: o.delayed.fx || {}, cash: o.delayed.cash || 0, note: tx.delayedNote || M("A delayed effect of an earlier decision.") });
     s.decisionPending = null;
-    const entry = { id: d.id, month: s.currentMonth, chapter: s.currentChapter, title: fill(d.title, s), choice: fill(o.t, s), cost: o.cost, score: o.score, risk: o.risk, why: o.why, contextNote: note };
+    const entry = { id: d.id, idx, month: s.currentMonth, chapter: s.currentChapter, title: tx.title, choice: tx.choice, cost: o.cost, score: o.score, risk: o.risk, why: tx.why, contextNote: note };
     s.decisions.push(entry);
     checkAchievements(s);
     return { ok: true, entry, effects: diffRes(before, snap(s)), note };
@@ -158,12 +205,12 @@
 
   // ---------- team ----------
   function hire(s, roleId) {
-    if (s.status !== "active") return { error: "The game is not active." };
+    if (s.status !== "active") return { error: M("The game is not active.") };
     const r = byId(D.ROLES, roleId);
-    if (!r) return { error: "Unknown role." };
-    if (has(s, roleId)) return { error: "You already hired this role." };
-    if (s.currentChapter < 4) return { error: "Hiring unlocks in Chapter 4." };
-    if (s.resources.capital < r.hire + r.salary) return { error: "Not enough capital: you need the hiring cost plus one month of salary." };
+    if (!r) return { error: M("Unknown role.") };
+    if (has(s, roleId)) return { error: M("You already hired this role.") };
+    if (s.currentChapter < 4) return { error: M("Hiring unlocks in Chapter 4.") };
+    if (s.resources.capital < r.hire + r.salary) return { error: M("Not enough capital: you need the hiring cost plus one month of salary.") };
     s.resources.capital -= r.hire;
     s.team.push({ roleId, hiredMonth: s.currentMonth });
     applyFx(s, { morale: 3 });
@@ -173,9 +220,9 @@
 
   // ---------- allocation ----------
   function setAlloc(s, key, value) {
-    if (!(key in s.alloc)) return { error: "Unknown budget line." };
+    if (!(key in s.alloc)) return { error: M("Unknown budget line.") };
     const v = Math.round(Number(value));
-    if (!isFinite(v) || v < 0) return { error: "Invalid amount." };
+    if (!isFinite(v) || v < 0) return { error: M("Invalid amount.") };
     s.alloc[key] = Math.min(v, 50000);
     return { ok: true };
   }
@@ -186,10 +233,10 @@
     if (p.alloc > room) { const f = room / p.alloc; Object.keys(s.alloc).forEach(k => { s.alloc[k] = Math.floor(s.alloc[k] * f / 100) * 100; }); }
   }
   function pivotModel(s, modelId) {
-    if (s.currentChapter !== 3) return { error: "You can only pivot your business model in Chapter 3." };
-    if (s.flags.pivoted) return { error: "You already pivoted once." };
-    if (!byId(D.MODELS, modelId) || modelId === s.startup.businessModel) return { error: "Choose a different model." };
-    if (s.resources.capital < 3000) return { error: "Pivoting costs 3,000 EGP." };
+    if (s.currentChapter !== 3) return { error: M("You can only pivot your business model in Chapter 3.") };
+    if (s.flags.pivoted) return { error: M("You already pivoted once.") };
+    if (!byId(D.MODELS, modelId) || modelId === s.startup.businessModel) return { error: M("Choose a different model.") };
+    if (s.resources.capital < 3000) return { error: M("Pivoting costs 3,000 EGP.") };
     s.resources.capital -= 3000; s.startup.businessModel = modelId; s.flags.pivoted = true;
     applyFx(s, { rep: -2 });
     return { ok: true };
@@ -199,14 +246,14 @@
   function cheapest(arr, key) { return Math.min.apply(null, arr.map(x => x[key])); }
   function blockers(s) {
     const out = [];
-    if (s.status !== "active") { out.push("The game has ended."); return out; }
-    if (s.eventPending) out.push("Respond to the pending event first.");
-    if (s.report) out.push("Continue from the monthly report first.");
-    if (s.decisionPending) out.push("Make this month's decision first.");
+    if (s.status !== "active") { out.push(M("The game has ended.")); return out; }
+    if (s.eventPending) out.push(M("Respond to the pending event first."));
+    if (s.report) out.push(M("Continue from the monthly report first."));
+    if (s.decisionPending) out.push(M("Make this month's decision first."));
     const m = s.currentMonth, r = s.resources;
-    if (m === 5 && s.team.length < 1 && r.capital >= cheapest(D.ROLES, "hire") + cheapest(D.ROLES, "salary")) out.push("Chapter 4 milestone: hire at least one teammate.");
-    if (m === 7 && !s.mvp.launched && r.capital >= 1500) out.push("Chapter 5 milestone: launch your MVP in the Product tab.");
-    if (m === 8 && (!s.pitch || !s.pitch.result)) out.push("Chapter 6 milestone: pitch to the investor.");
+    if (m === 5 && s.team.length < 1 && r.capital >= cheapest(D.ROLES, "hire") + cheapest(D.ROLES, "salary")) out.push(M("Chapter 4 milestone: hire at least one teammate."));
+    if (m === 7 && !s.mvp.launched && r.capital >= 1500) out.push(M("Chapter 5 milestone: launch your MVP in the Product tab."));
+    if (m === 8 && (!s.pitch || !s.pitch.result)) out.push(M("Chapter 6 milestone: pitch to the investor."));
     return out;
   }
   function runway(s) {
@@ -274,6 +321,7 @@
     if (w.max && s.currentMonth > w.max) return false;
     if (w.launched && !s.mvp.launched) return false;
     if (w.team && s.team.length < w.team) return false;
+    if (w.challenge && s.startup.challengeId !== w.challenge) return false;
     if (s.events.some(x => x.id === e.id)) return false;
     return true;
   }
@@ -283,23 +331,26 @@
     if (rand(s) > diff.eventChance) return null;
     const pool = D.EVENTS.filter(e => eligible(e, s));
     if (!pool.length) return null;
+    const own = pool.filter(e => e.when && e.when.challenge);
+    if (own.length && rand(s) < 0.4) return pick(s, own).id;
     return pick(s, pool).id;
   }
   function getEvent(s) {
     if (!s.eventPending) return null;
     const e = byId(D.EVENTS, s.eventPending);
     if (!e) return null;
-    return { id: e.id, title: fill(e.title, s), text: fill(e.text, s), options: e.options.map((o, i) => ({ index: i, t: o.t, cash: o.cash })) };
+    const base = evText(s, e.id, 0);
+    return { id: e.id, title: base.title, text: base.text, options: e.options.map((o, i) => ({ index: i, t: evText(s, e.id, i).choice, cash: o.cash })) };
   }
 
   function runMonth(s) {
-    if (s.status !== "active") return { error: "The game is not active." };
+    if (s.status !== "active") return { error: M("The game is not active.") };
     const m = modelOf(s), p = plannedSpend(s);
     const estRev = Math.round(s.resources.customers * m.arpu * 0.8);
     if (p.salaries + p.fixed > s.resources.capital + estRev) return endGame(s, "bankrupt");
     const bl = blockers(s);
     if (bl.length) return { error: bl[0] };
-    if (p.total > s.resources.capital + estRev) return { error: "budget", message: "Planned spending (" + p.total.toLocaleString("en-US") + " EGP) is more than your capital plus expected revenue (" + (s.resources.capital + estRev).toLocaleString("en-US") + " EGP). Lower the budget or use Auto-fit." };
+    if (p.total > s.resources.capital + estRev) return { error: "budget", message: M("Planned spending ({0} EGP) is more than your capital plus expected revenue ({1} EGP). Lower the budget or use Auto-fit.", fmtN(p.total), fmtN(s.resources.capital + estRev)) };
 
     const before = snap(s);
     const start = s.resources.capital;
@@ -325,25 +376,26 @@
   }
 
   function resolveEvent(s, eventId, idx) {
-    if (!s.eventPending || s.eventPending !== eventId) return { error: "That event is not active." };
+    if (!s.eventPending || s.eventPending !== eventId) return { error: M("That event is not active.") };
     const e = byId(D.EVENTS, eventId);
-    if (!e || !Number.isInteger(idx) || idx < 0 || idx >= e.options.length) return { error: "Invalid option." };
+    if (!e || !Number.isInteger(idx) || idx < 0 || idx >= e.options.length) return { error: M("Invalid option.") };
     const o = e.options[idx], sev = D.DIFFICULTY[s.difficulty].sev;
-    if (o.cash < 0 && s.resources.capital + o.cash < -20000) return { error: "Not enough capital." };
+    if (o.cash < 0 && s.resources.capital + o.cash < -20000) return { error: M("Not enough capital.") };
     const before = snap(s);
     applyFx(s, Object.assign({ cash: o.cash || 0 }, o.fx), { neg: sev });
-    if (o.delayed) s.pending.push({ month: s.currentMonth + o.delayed.in, fx: o.delayed.fx || {}, cash: o.delayed.cash || 0, note: o.delayed.note });
-    s.events.push({ id: e.id, month: s.currentMonth, title: fill(e.title, s), choice: o.t, why: o.why });
+    const tx = evText(s, e.id, idx);
+    if (o.delayed) s.pending.push({ month: s.currentMonth + o.delayed.in, fx: o.delayed.fx || {}, cash: o.delayed.cash || 0, note: tx.delayedNote || M("A delayed effect of an earlier event.") });
+    s.events.push({ id: e.id, idx, month: s.currentMonth, title: tx.title, choice: tx.choice, why: tx.why });
     s.eventPending = null;
-    if (s.report) { s.report.eventEffects = diffRes(before, snap(s)); s.report.eventWhy = o.why; }
+    if (s.report) { s.report.eventEffects = diffRes(before, snap(s)); s.report.eventWhy = tx.why; }
     checkAchievements(s);
-    return { ok: true, why: o.why, effects: diffRes(before, snap(s)) };
+    return { ok: true, why: tx.why, effects: diffRes(before, snap(s)) };
   }
 
   function advance(s) {
-    if (s.status !== "active") return { error: "The game is not active." };
-    if (!s.report) return { error: "Run the month first." };
-    if (s.eventPending) return { error: "Respond to the event first." };
+    if (s.status !== "active") return { error: M("The game is not active.") };
+    if (!s.report) return { error: M("Run the month first.") };
+    if (s.eventPending) return { error: M("Respond to the event first.") };
     s.report = null;
     if (s.resources.capital < 0) return endGame(s, "bankrupt");
     if (s.currentMonth >= 12) return endGame(s, "complete");
@@ -356,19 +408,19 @@
 
   // ---------- MVP ----------
   function launchMVP(s, o) {
-    if (s.status !== "active") return { error: "The game is not active." };
-    if (s.currentChapter < 5) return { error: "MVP development unlocks in Chapter 5." };
-    if (s.mvp.launched) return { error: "You already launched." };
+    if (s.status !== "active") return { error: M("The game is not active.") };
+    if (s.currentChapter < 5) return { error: M("MVP development unlocks in Chapter 5.") };
+    if (s.mvp.launched) return { error: M("You already launched.") };
     const features = Array.isArray(o.features) ? o.features.filter((f, i, a) => a.indexOf(f) === i) : [];
-    if (features.length < 1 || features.some(f => !byId(D.FEATURES, f))) return { error: "Choose at least one valid feature." };
+    if (features.length < 1 || features.some(f => !byId(D.FEATURES, f))) return { error: M("Choose at least one valid feature.") };
     const target = byId(D.TARGETS, o.target), strat = byId(D.STRATEGIES, o.strategy);
-    if (!target) return { error: "Choose your target customers." };
-    if (!strat) return { error: "Choose a launch strategy." };
+    if (!target) return { error: M("Choose your target customers.") };
+    if (!strat) return { error: M("Choose a launch strategy.") };
     const devBudget = Math.max(0, Math.round(Number(o.devBudget) || 0));
     const featCost = features.reduce((a, f) => a + byId(D.FEATURES, f).cost, 0);
     const testCost = o.testing ? 2000 : 0;
     const total = featCost + devBudget + testCost + strat.cost;
-    if (total > s.resources.capital) return { error: "This plan costs " + total.toLocaleString("en-US") + " EGP and you have " + s.resources.capital.toLocaleString("en-US") + " EGP." };
+    if (total > s.resources.capital) return { error: M("This plan costs {0} EGP and you have {1} EGP.", fmtN(total), fmtN(s.resources.capital)) };
 
     const before = snap(s), r = s.resources;
     r.capital -= total;
@@ -392,7 +444,7 @@
     if (modelOf(s).id === "b2b" && target.id !== "businesses" && target.id !== "institutions") customers = Math.round(customers * 0.4);
     r.customers += customers;
     s.mvp = { launched: true, features, target: target.id, strategy: strat.id, tested: !!o.testing, result: tier, readiness: Math.round(readiness), customers, month: s.currentMonth, cost: total };
-    const text = { great: "A strong launch! Users love it and early word of mouth is positive.", ok: "A decent launch. The product works, but users found rough edges.", rocky: "A rocky launch. The product was not ready and early users were frustrated." }[tier];
+    const text = M({ great: "A strong launch! Users love it and early word of mouth is positive.", ok: "A decent launch. The product works, but users found rough edges.", rocky: "A rocky launch. The product was not ready and early users were frustrated." }[tier]);
     checkAchievements(s);
     return { ok: true, tier, text, customers, readiness: Math.round(readiness), total, effects: diffRes(before, snap(s)) };
   }
@@ -422,29 +474,36 @@
     return w;
   }
   function startPitch(s) {
-    if (s.status !== "active") return { error: "The game is not active." };
-    if (s.currentChapter !== 6) return { error: "Investor Day happens in Chapter 6 (month 8)." };
-    if (s.pitch && s.pitch.result) return { error: "You already pitched." };
+    if (s.status !== "active") return { error: M("The game is not active.") };
+    if (s.currentChapter !== 6) return { error: M("Investor Day happens in Chapter 6 (month 8).") };
+    if (s.pitch && s.pitch.result) return { error: M("You already pitched.") };
     if (s.pitch) return { ok: true, pitch: s.pitch };
     const inv = pick(s, D.INVESTORS);
     s.pitch = { investorId: inv.id, answers: [], scores: criteria(s), result: null, total: null, funding: 0, weights: weightsFor(inv) };
     return { ok: true, pitch: s.pitch };
   }
-  function answerPitch(s, qIdx, aIdx) {
+  const PITCH_LIMIT = 180;
+  function pitchNote(q, a) { const A = g.ST.AR, x = LANG === "ar" && A && A.data && A.data.pitchQuestions && A.data.pitchQuestions[q]; return x && x.a && x.a[a] && x.a[a].note || null; }
+  function answerPitch(s, qIdx, aIdx, elapsed) {
     const p = s.pitch;
-    if (!p || p.result) return { error: "No active pitch." };
-    if (qIdx !== p.answers.length) return { error: "Answer the questions in order." };
+    if (!p || p.result) return { error: M("No active pitch.") };
+    if (qIdx !== p.answers.length) return { error: M("Answer the questions in order.") };
     const q = D.PITCH_QUESTIONS[qIdx];
-    if (!q || !q.a[aIdx]) return { error: "Invalid answer." };
+    if (!q || !q.a[aIdx]) return { error: M("Invalid answer.") };
     const a = q.a[aIdx];
     let fx = a.fx, note = null;
     if (a.req) {
       const cur = a.req.stat === "team" ? s.team.length : s.resources[a.req.stat];
-      if (cur < a.req.min) { fx = Object.assign({}, a.fx); Object.keys(fx).forEach(k => { if (fx[k] > 0) fx[k] = 0; }); Object.keys(a.req.fail).forEach(k => { fx[k] = (fx[k] || 0) + a.req.fail[k]; }); note = a.req.note; }
+      if (cur < a.req.min) { fx = Object.assign({}, a.fx); Object.keys(fx).forEach(k => { if (fx[k] > 0) fx[k] = 0; }); Object.keys(a.req.fail).forEach(k => { fx[k] = (fx[k] || 0) + a.req.fail[k]; }); note = pitchNote(qIdx, aIdx) || a.req.note; }
     }
     Object.keys(fx).forEach(k => { p.scores[k] = clamp(p.scores[k] + fx[k]); });
     p.answers.push({ q: qIdx, a: aIdx, note });
-    if (p.answers.length >= D.PITCH_QUESTIONS.length) finalizePitch(s);
+    if (p.answers.length >= D.PITCH_QUESTIONS.length) {
+      p.elapsed = Math.max(0, Math.round(Number(elapsed) || 0));
+      p.overTime = p.elapsed > PITCH_LIMIT;
+      if (p.overTime) Object.keys(p.scores).forEach(k => { p.scores[k] = clamp(p.scores[k] - 4); });
+      finalizePitch(s);
+    }
     return { ok: true, note, done: !!p.result };
   }
   function finalizePitch(s) {
@@ -455,10 +514,10 @@
     const diff = D.DIFFICULTY[s.difficulty];
     const bar = s.difficulty === "hard" ? 5 : s.difficulty === "easy" ? -3 : 0;
     if (total >= 62 + bar) { p.result = "approved"; p.funding = Math.round(inv.max * Math.min(1, total / 85) / 1000) * 1000; }
-    else if (total >= 45 + bar) { p.result = "conditional"; p.funding = Math.round(inv.max * 0.4 * (total / 70) / 1000) * 1000; p.covenant = { impact: Math.round(s.resources.impact + 12), text: "Reach " + Math.round(s.resources.impact + 12) + " Social Impact by the end of month 12." }; }
+    else if (total >= 45 + bar) { p.result = "conditional"; p.funding = Math.round(inv.max * 0.4 * (total / 70) / 1000) * 1000; p.covenant = { impact: Math.round(s.resources.impact + 12) }; }
     else { p.result = "rejected"; p.funding = 0; }
     void diff;
-    if (p.funding > 0) { s.pending.push({ month: s.currentMonth + 1, fx: {}, cash: p.funding, note: "Investor funding of " + p.funding.toLocaleString("en-US") + " EGP arrived." }); s.finance.totalFunding += 0; }
+    if (p.funding > 0) { s.pending.push({ month: s.currentMonth + 1, fx: {}, cash: p.funding, note: M("Investor funding of {0} EGP arrived.", fmtN(p.funding)) }); s.finance.totalFunding += 0; }
     if (p.result === "approved") applyFx(s, { rep: 6, morale: 6 });
     if (p.result === "conditional") applyFx(s, { rep: 2, morale: 2 });
     if (p.result === "rejected") applyFx(s, { morale: -5 });
@@ -509,12 +568,12 @@
     const best = s.decisions.slice().sort((a, b) => b.score - a.score)[0] || null;
     const worst = sorted[0] && sorted[0].score <= 6 ? sorted[0] : null;
     const lessons = [];
-    sorted.filter(d => d.score <= 5).slice(0, 3).forEach(d => lessons.push({ title: d.title, text: d.why }));
-    if (reason === "bankrupt") lessons.push({ title: "Cash is oxygen", text: "Profit on paper does not pay salaries. Watch your runway every month and cut early." });
-    if (s.resources.satisfaction < 45) lessons.push({ title: "Customers leave quietly", text: "Low satisfaction drives churn, which makes growth expensive." });
-    if (s.resources.impact < 25) lessons.push({ title: "Mission drift", text: "Your social impact stayed low. Spend on impact activities and measure them." });
-    if (!s.mvp.launched) lessons.push({ title: "Ship something", text: "Without launching, you cannot learn from real customers." });
-    if (!lessons.length) lessons.push({ title: "Keep learning", text: "Your decisions were sound. Next time, try a different challenge or a harder difficulty." });
+    sorted.filter(d => d.score <= 5).slice(0, 3).forEach(d => lessons.push({ kind: "decision", id: d.id, idx: d.idx }));
+    if (reason === "bankrupt") lessons.push({ kind: "cash" });
+    if (s.resources.satisfaction < 45) lessons.push({ kind: "satisfaction" });
+    if (s.resources.impact < 25) lessons.push({ kind: "mission" });
+    if (!s.mvp.launched) lessons.push({ kind: "ship" });
+    if (!lessons.length) lessons.push({ kind: "keep" });
     const ch = challengeOf(s), extra = Math.round(s.resources.beneficiaries * ch.metrics.extraPerPerson);
     s.finalResult = {
       score, rank: rankFor(score.total), ending, endingName: byId(D.ENDINGS, ending).name, endingText: byId(D.ENDINGS, ending).text,
@@ -528,18 +587,19 @@
 
   function reportText(s) {
     const f = s.finalResult; if (!f) return "";
-    const L = [];
-    L.push("STARTUP TYCOON - FINAL REPORT", "(Student-built game inspired by the Hult Prize mission. Not an official result.)", "");
-    L.push("Startup: " + s.startup.name + " (" + challengeOf(s).name + ", " + modelOf(s).name + ")", "Founder: " + s.founder.name, "Difficulty: " + D.DIFFICULTY[s.difficulty].name, "");
-    L.push("Final score: " + f.score.total + " / 1000 - " + f.rank, "Ending: " + f.endingName, f.endingText, "");
-    L.push("Score breakdown: Impact " + f.score.impact + "/250, Finance " + f.score.finance + "/200, Innovation " + f.score.innovation + "/150, Quality " + f.score.quality + "/150, Scalability " + f.score.scalability + "/150, Decisions " + f.score.decision + "/100", "");
-    L.push("Final capital: " + f.finalCapital.toLocaleString("en-US") + " EGP", "Total revenue: " + f.totalRevenue.toLocaleString("en-US") + " EGP", "Profit/Loss: " + f.profit.toLocaleString("en-US") + " EGP", "People served: " + f.beneficiaries.toLocaleString("en-US"), f.extraMetric + ": " + f.extraValue.toLocaleString("en-US"), "Social impact: " + f.impact + "/100", "Investor: " + f.investor, "");
-    L.push("KEY DECISIONS");
-    s.decisions.forEach(d => L.push("- Month " + d.month + ": " + d.title + " -> " + d.choice));
-    L.push("", "LESSONS LEARNED");
-    f.lessons.forEach(x => L.push("- " + x.title + ": " + x.text));
-    L.push("", "ACHIEVEMENTS");
-    f.achievements.forEach(id => { const a = byId(D.ACHIEVEMENTS, id); if (a) L.push("- " + a.name + ": " + a.desc); });
+    const L = [], n = fmtN, D2 = (k, id, fld, fb) => { const x = arData(k, id); return (x && x[fld]) || fb; };
+    const ch = challengeOf(s), md = modelOf(s);
+    L.push(M("STARTUP TYCOON - FINAL REPORT"), M("(Student-built game inspired by the Hult Prize mission. Not an official result.)"), "");
+    L.push(M("Startup: {0} ({1}, {2})", s.startup.name, D2("challenges", ch.id, "name", ch.name), D2("models", md.id, "name", md.name)), M("Founder: {0}", s.founder.name), M("Difficulty: {0}", D2("difficulty", s.difficulty, "name", D.DIFFICULTY[s.difficulty].name)), "");
+    L.push(M("Final score: {0} / 1000 - {1}", f.score.total, D2("ranks", f.rank, "name", f.rank)), M("Ending: {0}", D2("endings", f.ending, "name", f.endingName)), D2("endings", f.ending, "text", f.endingText), "");
+    L.push(M("Score breakdown: Impact {0}/250, Finance {1}/200, Innovation {2}/150, Quality {3}/150, Scalability {4}/150, Decisions {5}/100", f.score.impact, f.score.finance, f.score.innovation, f.score.quality, f.score.scalability, f.score.decision), "");
+    L.push(M("Final capital: {0} EGP", n(f.finalCapital)), M("Total revenue: {0} EGP", n(f.totalRevenue)), M("Profit/Loss: {0} EGP", n(f.profit)), M("People served: {0}", n(f.beneficiaries)), M("{0}: {1}", D2("challenges", ch.id, "extraMetric", f.extraMetric), n(f.extraValue)), M("Social impact: {0}/100", f.impact), M("Investor: {0}", M(f.investor)), "");
+    L.push(M("KEY DECISIONS"));
+    s.decisions.forEach(d => { const x = describeDecision(s, d); L.push(M("- Month {0}: {1} -> {2}", d.month, x.title, x.choice)); });
+    L.push("", M("LESSONS LEARNED"));
+    f.lessons.forEach(l => { const x = l.kind ? lessonText(s, l) : l; L.push("- " + x.title + ": " + x.text); });
+    L.push("", M("ACHIEVEMENTS"));
+    f.achievements.forEach(id => { const a = byId(D.ACHIEVEMENTS, id); if (a) L.push("- " + D2("achievements", id, "name", a.name) + ": " + D2("achievements", id, "desc", a.desc)); });
     return L.join("\n");
   }
 
@@ -547,8 +607,9 @@
     SAVE_VERSION, LABELS, MONTH_CHAPTER, clamp, byId, rand, fill,
     newGame, validateSetup, getDecision, decide, businessContext, hire, setAlloc, autoFit, pivotModel,
     blockers, runway, objective, plannedSpend, salaries, fixedCost, allocTotal, teamBonus, has, modelOf, challengeOf, modelFits,
-    runMonth, resolveEvent, getEvent, advance, launchMVP, criteria, weightsFor, startPitch, answerPitch,
-    scoreBreakdown, scalabilityScore, rankFor, checkAchievements, endGame, reportText, chapterForMonth
+    runMonth, rollEvent, resolveEvent, getEvent, advance, launchMVP, criteria, weightsFor, startPitch, answerPitch, PITCH_LIMIT,
+    scoreBreakdown, scalabilityScore, rankFor, checkAchievements, endGame, reportText, chapterForMonth,
+    setLang, describeDecision, describeEvent, lessonText, M
   };
   if (typeof module !== "undefined") module.exports = g.ST.Engine;
 })(typeof window !== "undefined" ? window : globalThis);

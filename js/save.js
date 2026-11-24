@@ -39,7 +39,7 @@
 
   function saveGame(s) {
     try { s.updatedAt = Date.now(); store().setItem(KEYS.save, JSON.stringify(s)); return { ok: true, memory: usingMemory }; }
-    catch (e) { return { ok: false, error: "Could not save: " + (e && e.message ? e.message : "storage unavailable") }; }
+    catch (e) { return { ok: false, error: (e && e.message ? e.message : "storage unavailable") }; }
   }
   function loadGame() {
     let raw;

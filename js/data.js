@@ -7,7 +7,7 @@
   const DIFFICULTY = {
     easy: { id: "easy", name: "Easy", capital: 150000, sev: 0.7, eventChance: 0.45, label: "Low event severity" },
     normal: { id: "normal", name: "Normal", capital: 100000, sev: 1, eventChance: 0.6, label: "Medium event severity" },
-    hard: { id: "hard", name: "Hard", capital: 70000, sev: 1.3, eventChance: 0.75, label: "High event severity" }
+    hard: { id: "hard", name: "Hard", capital: 85000, sev: 1.2, eventChance: 0.7, label: "High event severity" }
   };
 
   const CHALLENGES = [
@@ -135,7 +135,7 @@
       O("Sketch screens on paper and test them with users", 0, "low", 7, { quality: 2, research: 4, innov: 1 }, "Paper prototypes cost nothing and still reveal whether people understand your idea.")
     ]),
     Dc("partnerships", 2, "Early partnerships and IP", "Others want to work with {s}. How do you protect and grow your idea?", ["reputation", "impact", "sustainability"], [
-      O("Partner with a respected NGO", 0, "low", 8, { rep: 5, impact: 4, reach: 3 }, "Partnerships with trusted organisations give credibility and access to communities."),
+      O("Partner with a respected NGO", 0, "low", 8, { rep: 5, impact: 4, reach: 3 }, "Partnerships with trusted organisations give credibility and access to communities.", { ctx: { stat: "reputation", min: 12, mult: 0.5, note: "The NGO hesitated because you had little track record yet." } }),
       O("File a patent right away", 5000, "med", 5, { innov: 6, sust: -2 }, "Patents are slow and costly; early on, speed and learning usually matter more."),
       O("Open-source everything", 0, "med", 6, { innov: 3, rep: 3, sust: -4, impact: 2 }, "Open sharing builds goodwill but you must still find a way to fund yourself.")
     ]),
@@ -221,12 +221,12 @@
       O("Launch in a new country immediately", 15000, "high", 3, { reach: 12, customers: 10, sust: -10, morale: -4 }, "Moving too fast stretches teams and cash. Many promising startups die scaling early.")
     ]),
     Dc("impact-measure", 7, "Measuring your impact", "Funders and users want evidence that {s} works.", ["impact", "reputation"], [
-      O("Commission an independent impact assessment", 5000, "low", 9, { rep: 4, impact: 4, pb_impact: 4, research: 4 }, "Independent evidence is what separates real impact from marketing."),
+      O("Commission an independent impact assessment", 5000, "low", 9, { rep: 4, impact: 4, pb_impact: 4, research: 4 }, "Independent evidence is what separates real impact from marketing.", { ctx: { stat: "customers", min: 20, mult: 0.5, note: "With so few customers, the assessment had little data to measure." } }),
       O("Publish self-reported numbers", 500, "med", 5, { rep: 1, impact: 1 }, "Self-reporting is cheap but easy to doubt."),
       O("Do not measure, the benefits are obvious", 0, "high", 2, { rep: -2, impact: -2 }, "What gets measured gets improved. Without evidence, you cannot find what is working.")
     ]),
     Dc("scale-ops", 7, "Operating at scale", "More customers mean more complexity.", ["quality", "sustainability", "morale"], [
-      O("Invest in automating repeat tasks", 6000, "low", 8, { sust: 6, quality: 3, morale: 3 }, "Automation lowers cost per customer and frees the team for what matters."),
+      O("Invest in automating repeat tasks", 6000, "low", 8, { sust: 6, quality: 3, morale: 3 }, "Automation lowers cost per customer and frees the team for what matters.", { ctx: { stat: "team", min: 2, mult: 0.5, note: "With a very small team there was little to automate, so the setup effort was partly wasted." } }),
       O("Hire quickly to keep up", 4000, "med", 5, { quality: 2, morale: 2, sust: -4 }, "More people solve today's problem and raise tomorrow's costs."),
       O("Do nothing and hope", 0, "high", 2, { sat: -6, morale: -6 }, "Ignoring scale problems leads to burnout and unhappy customers.")
     ]),
@@ -234,6 +234,87 @@
       O("Public-sector pilot to serve more people", 2000, "med", 8, { impact: 5, reach: 5, rep: 3 }, "Public partners offer reach and legitimacy, but move slowly.", { delayed: { in: 2, cash: 14000, note: "The public pilot grant was paid." } }),
       O("Corporate partnership for revenue", 1000, "med", 7, { sust: 5, rep: 2, impact: 1 }, "Corporates fund growth but may pull you toward their priorities.", { delayed: { in: 2, cash: 9000, note: "The corporate contract was paid." } }),
       O("Decline both and stay independent", 0, "low", 4, { morale: 1 }, "Independence has value, but saying no to every partnership slows your mission.")
+    ]),
+    // ---- additional decisions ----
+    Dc("problem-framing", 1, "Framing the problem", "Your team describes {p} in three different ways. How do you agree on what you are solving?", ["research", "innovation"], [
+      O("Write a one-page problem statement and test it with 5 affected people", 300, "low", 9, { research: 8, innov: 3, rep: 1 }, "A sharp, tested problem statement keeps the whole team solving the same thing."),
+      O("Vote on the version most people like", 0, "med", 5, { research: 2, morale: 1 }, "Voting creates agreement, not accuracy. The right framing comes from the people who live the problem."),
+      O("Skip it and start building", 0, "high", 2, { research: -2, morale: -1 }, "Without a shared problem, features drift and the team builds different products.")
+    ]),
+    Dc("community-trust", 1, "Earning community trust", "People in the community have seen many projects arrive and disappear. Why would they trust {s}?", ["reputation", "impact"], [
+      O("Spend a week volunteering with a local group before asking anything", 400, "low", 9, { rep: 5, impact: 2, research: 4 }, "Trust is built by showing up first and asking later."),
+      O("Hand out flyers and a free sample", 1200, "low", 6, { rep: 2, reach: 3 }, "Visibility helps awareness, but trust needs relationships, not flyers."),
+      O("Post online and wait for people to come", 0, "med", 3, { reach: 1 }, "Passive outreach rarely reaches the people with the least access.")
+    ]),
+    Dc("brand-name", 2, "Naming and brand", "{s} needs to feel trustworthy to the people it serves, not only to investors.", ["reputation", "reach"], [
+      O("Test two names and a simple logo with 15 target users", 400, "low", 8, { rep: 3, reach: 3, sat: 2 }, "Cheap tests stop you from picking a name that confuses or offends your own users."),
+      O("Hire a branding agency", 7000, "med", 4, { rep: 3, reach: 2, sust: -4 }, "Agency polish is nice, but spending heavily on brand before you have customers burns runway."),
+      O("Keep the working name and move on", 0, "low", 6, {}, "Fine for now, as long as you check later that users understand it.")
+    ]),
+    Dc("tech-choice", 2, "Choosing your technology", "How should {s} build its first version?", ["quality", "sustainability", "innovation"], [
+      O("Use free, open-source tools that run on cheap phones", 0, "low", 9, { quality: 5, sust: 4, reach: 3 }, "Boring technology that works for your users beats impressive technology they cannot use."),
+      O("Use the newest AI and cloud stack", 5000, "high", 4, { innov: 7, quality: 2, sust: -5 }, "Cutting-edge tools raise costs and complexity before you know what customers want."),
+      O("Outsource development to the cheapest bidder", 2000, "high", 3, { quality: -3 }, "Cheap outsourcing often means rework. Quality you do not control becomes a hidden cost.", { delayed: { in: 2, fx: { quality: -4, morale: -2 }, note: "The outsourced code needed expensive fixes." } })
+    ]),
+    Dc("grant-vs-revenue", 3, "Grants or customers?", "A grant could fund {s} for six months, but it comes with reports and restrictions.", ["sustainability", "capital"], [
+      O("Apply for the grant and also start charging early adopters", 600, "low", 9, { sust: 6, rep: 2, research: 3 }, "Mixing grant funding with real paying customers proves demand and extends your runway."),
+      O("Depend on the grant completely", 300, "med", 4, { sust: -3, rep: 1 }, "Grant-only startups stop when the grant ends, and usually build for the funder, not the customer.", { delayed: { in: 2, cash: 8000, note: "The grant instalment arrived." } }),
+      O("Ignore grants to stay independent", 0, "low", 5, { sust: 1, morale: 1 }, "Independence is valid, but turning away non-dilutive money is rarely free.")
+    ]),
+    Dc("free-trial", 3, "Free trial or paid from day one?", "How should new users start with {s}?", ["customers", "sustainability", "reach"], [
+      O("Free for 30 days, then a low price with a free tier for those in need", 500, "low", 8, { customers: 6, sust: 3, impact: 2, sat: 2 }, "A trial lowers the barrier to try, and a social tier keeps your mission intact.", { ctx: { stat: "quality", min: 30, mult: 0.5, note: "Users tried it, but the product was not good enough to turn them into customers." } }),
+      O("Free forever for everyone", 0, "med", 4, { customers: 10, reach: 5, sust: -6 }, "Free attracts users quickly but gives you nothing to pay for staff or servers."),
+      O("Charge full price from the first day", 0, "med", 5, { customers: -2, sust: 3, impact: -3 }, "Charging early proves value, but excludes users who could benefit most.")
+    ]),
+    Dc("remote-talent", 4, "Where do you find talent?", "You need skilled people but cannot afford big-city salaries.", ["morale", "capital", "quality"], [
+      O("Recruit from local universities and offer mentorship", 600, "low", 9, { morale: 4, quality: 3, rep: 2 }, "Students bring energy and mission fit, and mentoring makes them loyal."),
+      O("Hire freelancers per task", 2500, "med", 6, { quality: 3, morale: 0 }, "Flexible and cheap at first, but freelancers do not carry your mission or knowledge."),
+      O("Wait until you can afford experienced staff", 0, "med", 3, { morale: -2, quality: -2 }, "Waiting slows everything while the market moves on.")
+    ]),
+    Dc("training", 4, "Training the team", "Your small team is learning on the job. Do you invest in skills?", ["morale", "quality"], [
+      O("Weekly learning sessions led by the team", 0, "low", 8, { morale: 3, quality: 3, innov: 2 }, "Peer learning is free and spreads knowledge so no one person is a single point of failure."),
+      O("Buy online courses for everyone", 2500, "low", 7, { morale: 3, quality: 4 }, "Courses build skills, but only help if people have time to use them."),
+      O("No time for training, just deliver", 0, "med", 3, { morale: -3, quality: -1 }, "Skipping learning saves hours now and costs quality later.")
+    ]),
+    Dc("launch-pricing", 5, "Launch pricing", "What price do you announce at launch?", ["customers", "sustainability", "impact"], [
+      O("Founder pricing for early users plus a fair-price tier", 300, "low", 8, { customers: 5, sust: 3, rep: 2 }, "Rewarding early believers builds loyalty and gives you honest price feedback.", { ctx: { stat: "reputation", min: 15, mult: 0.5, note: "You had few believers yet, so the early-user offer reached few people." } }),
+      O("Launch with a big discount to grab attention", 0, "med", 5, { customers: 9, sust: -4 }, "Discounts attract bargain hunters. When prices rise, many leave."),
+      O("Launch at the highest price to look premium", 0, "med", 4, { customers: -4, sust: 2, impact: -3 }, "Premium pricing without proof of value stalls adoption.")
+    ]),
+    Dc("feedback-loop", 5, "Listening after launch", "Early users are talking about {s}. How do you collect what they say?", ["satisfaction", "quality"], [
+      O("Weekly calls with 5 users and a simple feedback form", 0, "low", 9, { sat: 4, quality: 3, research: 4 }, "Frequent contact with real users finds the next best improvement faster than guessing.", { ctx: { stat: "customers", min: 10, mult: 0.5, note: "You had too few users to learn much from yet." } }),
+      O("Only watch the app statistics", 0, "med", 5, { research: 2, quality: 1 }, "Numbers tell you what happened, not why. You need both."),
+      O("Wait for a big review period next quarter", 0, "high", 3, { sat: -3 }, "Long gaps let small problems grow into reasons to leave.")
+    ]),
+    Dc("hard-questions", 6, "Preparing for tough questions", "Investors will ask what could go wrong with {s}.", ["reputation", "sustainability"], [
+      O("List your top 5 risks with a plan for each", 0, "low", 9, { pb_business: 4, pb_financial: 3, rep: 1 }, "Naming your own risks shows maturity. Investors back founders who see problems early."),
+      O("Prepare to say everything is under control", 0, "high", 3, { pb_business: -3, pb_problem: -2 }, "Overconfidence reads as inexperience, and investors will find the gaps anyway."),
+      O("Ask a friend to role-play a harsh investor", 0, "low", 7, { pb_problem: 3, pb_innovation: 2, morale: 1 }, "Role-play reveals weak answers while the cost is still low.")
+    ]),
+    Dc("financial-story", 6, "Telling your financial story", "How do you present the numbers of {s} to investors?", ["sustainability", "capital"], [
+      O("Show real monthly figures, unit economics and your plan", 0, "low", 9, { pb_financial: 6, pb_business: 3 }, "Honest numbers build trust, even when they are small.", { ctx: { stat: "sustainability", min: 35, mult: 0.5, note: "Your finances are still fragile, so the numbers drew tough questions." } }),
+      O("Show only a big five-year projection", 0, "med", 4, { pb_financial: 2, pb_business: -2 }, "Projections without current numbers feel like hope, not a plan."),
+      O("Keep the financials vague to avoid questions", 0, "high", 2, { pb_financial: -6, pb_business: -3 }, "Vagueness is the fastest way to lose a serious investor.")
+    ]),
+    Dc("sustain-team", 7, "Protecting the team as you grow", "Growth is exciting, but the team is tired.", ["morale", "quality"], [
+      O("Set clear working hours and hire help for the hardest roles", 3000, "low", 8, { morale: 6, quality: 2, sust: -1 }, "Sustainable pace protects quality and keeps your best people."),
+      O("Offer bonuses for extra hours", 2500, "med", 5, { morale: 2, quality: 1, sust: -2 }, "Bonuses are short-term fixes that do not remove the cause of burnout."),
+      O("Expect everyone to push harder", 0, "high", 2, { morale: -7, quality: -3 }, "Overwork leads to mistakes and resignations right when you need stability.")
+    ]),
+    Dc("local-hiring", 7, "Hiring from the community", "{s} is expanding and needs field staff.", ["impact", "reputation", "morale"], [
+      O("Hire and train people from the communities you serve", 2500, "low", 9, { impact: 5, rep: 4, morale: 2, reach: 3 }, "Local hires bring trust, language and insight, and create jobs, which is impact in itself.", { ctx: { stat: "reputation", min: 12, mult: 0.6, note: "Few locals knew about you yet, so recruiting was slow." } }),
+      O("Hire experienced outsiders for speed", 3500, "med", 5, { quality: 3, impact: 0, reach: 2 }, "Faster at first, but outsiders may miss local context."),
+      O("Use unpaid interns only", 0, "med", 3, { morale: -2, rep: -2 }, "Free labour is not a sustainable or fair base for a social business.")
+    ]),
+    Dc("mission-guard", 7, "Staying true to the mission", "A large buyer offers to acquire a stake in {s}, but wants to drop the free tier for the poorest users.", ["impact", "sustainability", "reputation"], [
+      O("Negotiate: accept investment but write the social mission into the contract", 800, "med", 9, { sust: 4, rep: 3, impact: 2 }, "Guarding the mission in writing lets you grow without drifting from why you started."),
+      O("Accept everything and drop the free tier", 0, "high", 2, { sust: 5, impact: -9, rep: -5 }, "This is classic mission drift: the money grows and the purpose shrinks."),
+      O("Refuse and keep going alone", 0, "low", 5, { impact: 1, sust: -2, morale: 1 }, "Protecting the mission is valid, but ignoring all investment can limit how many people you reach.")
+    ]),
+    Dc("environment", 7, "Your own footprint", "As {s} scales, it creates waste and energy use of its own.", ["sustainability", "reputation", "impact"], [
+      O("Measure your footprint and set one simple reduction goal", 1000, "low", 8, { sust: 4, rep: 3, impact: 2 }, "Measuring first shows where the biggest savings are, often cutting cost too."),
+      O("Buy carbon offsets only", 2000, "med", 4, { rep: 1, sust: -1 }, "Offsets without reducing your own use can look like greenwashing."),
+      O("Not a priority right now", 0, "med", 3, { rep: -1 }, "Ignoring your footprint contradicts a social-impact brand as you grow.")
     ])
   ];
 
@@ -336,6 +417,110 @@
     E("local-festival", "Chance to present at a local festival", "A festival offers a free stall for local startups.", { min: 4, launched: true }, [
       ["Take the stall", -600, { customers: 10, reach: 4, rep: 2 }, "Face-to-face contact builds trust with new customers."],
       ["Pass", 0, {}, "No cost, no gain."]
+    ]),
+    E("supplier-fraud", "A supplier cuts corners", "You learn that one of your suppliers has been using lower-quality parts in the products {s} delivers.", { min: 5, launched: true }, [
+      ["Switch supplier and tell affected customers", -3500, { rep: 3, sat: 2, sust: -2 }, "Owning the problem costs money but protects the trust you built."],
+      ["Warn the supplier and keep them", -500, { quality: -2, rep: -2 }, "A warning without consequences usually repeats the problem."],
+      ["Say nothing and hope", 0, { rep: 0 }, "Hiding quality issues is a gamble.", { in: 2, fx: { rep: -10, sat: -8 }, note: "The quality issue became public." }]
+    ]),
+    E("currency-shock", "Currency swings", "The exchange rate moved sharply and your imported tools and services cost more.", { min: 4 }, [
+      ["Move to local tools and suppliers", -2000, { sust: 3, quality: -1 }, "Local options reduce currency risk and support the local economy."],
+      ["Absorb the higher costs", -4000, { sust: -3 }, "Simple, but it eats into your runway."],
+      ["Raise prices slightly", 1500, { sat: -3, customers: -2 }, "A small increase protects margin but tests customer loyalty."]
+    ]),
+    E("academic-partner", "A university wants to study your impact", "A research lab offers to run a free study on how {s} helps people.", { min: 6, launched: true }, [
+      ["Accept and share your data openly", 0, { rep: 4, impact: 3, research: 5, morale: 1 }, "Independent research builds evidence investors and funders trust."],
+      ["Decline to protect your image", 0, {}, "You avoid risk, and also lose the chance to learn what works."]
+    ]),
+    E("key-customer", "A large customer asks for custom features", "Your biggest customer will pay more if you build features only they need.", { min: 6, launched: true }, [
+      ["Build it only if it helps other users too", -1500, { quality: 2, sat: 2, innov: 2 }, "Features that help many customers justify the cost.", { in: 2, cash: 6000, note: "The key customer paid for the shared feature." }],
+      ["Build the custom version just for them", -3000, { sat: 2, quality: -2, sust: -2 }, "Custom work for one customer can pull the whole product off course."],
+      ["Politely decline", 0, { sat: -2 }, "Saying no keeps focus, though you risk losing the customer."]
+    ]),
+    E("negative-review", "A harsh public review", "A user published a detailed, critical review of {s}.", { min: 6, launched: true }, [
+      ["Thank them, fix the issues and reply publicly", -500, { rep: 4, sat: 3, quality: 2 }, "Public, humble replies turn critics into supporters."],
+      ["Ask the platform to remove it", 0, { rep: -3 }, "Trying to silence criticism usually makes it spread."],
+      ["Stay silent", 0, { rep: -2, sat: -2 }, "Silence looks like indifference."]
+    ]),
+    E("power-outage", "Power and internet outages", "Repeated outages in your area are disrupting service for {s}.", { min: 5, launched: true }, [
+      ["Add an offline mode and backup power for the team", -3000, { quality: 3, sat: 3, reach: 2 }, "Designing for unreliable infrastructure is a real advantage in your market."],
+      ["Apologise and wait it out", 0, { sat: -5, customers: -3 }, "Customers do not care why it failed, only that it did."]
+    ]),
+    E("advisor-offer", "A senior advisor offers to join", "A respected executive offers to advise {s} in exchange for a small equity share.", { min: 4 }, [
+      ["Accept with a clear role and a vesting schedule", -300, { rep: 4, morale: 2, research: 3, pb_business: 3 }, "Good advisors open doors and sharpen strategy, if the terms are clear."],
+      ["Give a large equity share to secure them", 0, { rep: 4, sust: -3 }, "Giving away too much too early limits what you can offer later."],
+      ["Decline, you want full control", 0, {}, "Control is valuable, and so is experience you do not have yet."]
+    ]),
+    E("food-spoilage", "A cold-chain failure", "A refrigeration breakdown puts a batch of food handled by {s} at risk of spoiling.", { min: 3, challenge: "food-security" }, [
+      ["Redistribute it fast to nearby families and shelters", -800, { impact: 4, rep: 3, morale: 2 }, "Quick action saves food and shows your mission is real."],
+      ["Invest in proper cold storage", -4000, { quality: 3, sust: 3, impact: 2 }, "Fixing the root cause prevents the next loss."],
+      ["Write off the batch and move on", 0, { impact: -3, rep: -2 }, "Wasting food in a food-waste startup hurts your credibility."]
+    ]),
+    E("restaurant-chain-partner", "A restaurant chain wants to partner", "A regional restaurant chain offers to supply surplus food to {s} every week.", { min: 4, challenge: "food-security" }, [
+      ["Sign a pilot with clear volume and quality terms", -500, { reach: 4, impact: 3, rep: 2 }, "A pilot proves the model before you depend on it.", { in: 2, cash: 5000, note: "The pilot grew into a paid contract." }],
+      ["Accept everything they offer immediately", -2500, { reach: 5, quality: -3, morale: -2 }, "More supply than you can handle spoils the food and burns out the team."],
+      ["Decline, you are not ready", 0, {}, "Knowing your limits is wise, but the offer may not return."]
+    ]),
+    E("food-safety-inspection", "A food-safety inspection", "Inspectors announce a visit to check how {s} stores and delivers food.", { min: 5, challenge: "food-security" }, [
+      ["Prepare thoroughly and train the team", -1200, { quality: 3, rep: 4, research: 2 }, "Compliance builds trust with partners and regulators."],
+      ["Hope for the best", 0, { rep: -4, quality: -2 }, "Unprepared teams often fail inspections they could have passed."]
+    ]),
+    E("exam-season", "Exam season surge", "Students flood {s} before national exams, and servers and tutors are stretched.", { min: 4, challenge: "quality-education" }, [
+      ["Add capacity and extend support hours", -2500, { sat: 4, customers: 5, morale: -2 }, "Serving users at their peak moment earns lasting loyalty."],
+      ["Keep service as is", 0, { sat: -4, quality: -2 }, "Students remember the app that failed when they needed it."],
+      ["Offer a free exam-prep pack for those who cannot pay", -1000, { impact: 4, rep: 3, sat: 2 }, "Targeted generosity extends your impact and goodwill."]
+    ]),
+    E("teacher-union", "Teachers voice concerns", "A teachers' association worries that {s} will replace them and asks for a meeting.", { min: 5, challenge: "quality-education" }, [
+      ["Meet them and co-design a teacher-support feature", -800, { rep: 4, quality: 3, impact: 3 }, "Teachers are allies when tools help them rather than replace them."],
+      ["Send a written statement only", 0, { rep: -1 }, "A letter rarely resolves a worry."],
+      ["Ignore the concern", 0, { rep: -4, impact: -2 }, "Without teachers, adoption in schools stalls."]
+    ]),
+    E("low-bandwidth-schools", "Schools with weak internet", "Many partner schools cannot load {s} reliably.", { min: 5, launched: true, challenge: "quality-education" }, [
+      ["Build a lightweight offline version", -3500, { reach: 5, impact: 4, innov: 2 }, "Designing for the hardest conditions opens the biggest market."],
+      ["Focus only on well-connected schools", 0, { reach: -2, impact: -3 }, "Easier now, but it leaves out those who need you most."]
+    ]),
+    E("pump-failure", "A community pump fails", "A pump serving a village that uses {s} stops working.", { min: 4, challenge: "clean-water" }, [
+      ["Send a repair crew and train local technicians", -2000, { impact: 4, rep: 3, sust: 3 }, "Local skills make solutions last."],
+      ["Replace the pump quickly at full cost", -4500, { impact: 3, sat: 3, sust: -1 }, "It works now, but dependence on you grows."],
+      ["Tell the village to wait for the next visit", 0, { sat: -5, rep: -3, impact: -3 }, "People without water cannot wait."]
+    ]),
+    E("water-quality-test", "Independent water test", "A university lab offers to test the water quality delivered by {s}.", { min: 5, challenge: "clean-water" }, [
+      ["Accept and publish the results openly", -600, { rep: 5, research: 3, impact: 2 }, "Transparent evidence is a strong asset when pitching."],
+      ["Accept but keep the results private", -600, { research: 2, quality: 2 }, "Learning is useful, but hidden results build no trust."],
+      ["Decline the test", 0, { rep: -2 }, "Avoiding checks makes people wonder what you fear."]
+    ]),
+    E("municipality-tender", "A municipality tender", "The local municipality opens a tender for community water services, and {s} could apply.", { min: 6, challenge: "clean-water" }, [
+      ["Apply with a strong impact plan", -1500, { reach: 3, rep: 3, pb_impact: 3 }, "Public contracts bring scale and credibility, though slowly.", { in: 3, cash: 9000, note: "Your bid won a first municipal contract." }],
+      ["Skip it and stay focused", 0, {}, "Focus is good, but government deals can unlock growth."]
+    ]),
+    E("panel-import-delay", "Solar panels stuck at port", "A shipment of panels for {s} is delayed at customs for weeks.", { min: 3, challenge: "clean-energy" }, [
+      ["Source panels from a local supplier at a higher price", -3500, { reach: 2, quality: 1, sust: 1 }, "A local supply chain costs more now but reduces future risk."],
+      ["Wait and update customers honestly", 0, { sat: -2, rep: 1 }, "Honesty softens delays, but waiting stalls growth."],
+      ["Pay for expedited clearance", -2500, { reach: 1, rep: -1 }, "Speed can be bought, though it is a habit to avoid."]
+    ]),
+    E("subsidy-change", "Energy subsidy changes", "The government announces a change to energy subsidies that affects how customers pay for {s}.", { min: 5, challenge: "clean-energy" }, [
+      ["Adapt your pricing and offer flexible payments", -1000, { sat: 3, rep: 2, pb_financial: 2 }, "Fast adaptation protects customers and revenue."],
+      ["Keep prices and see what happens", 0, { customers: -4, sat: -2 }, "Ignoring policy shifts can quietly drain demand."],
+      ["Lobby alongside other startups for a better policy", -500, { rep: 3, impact: 2 }, "Collective voices shape policy more than one company."]
+    ]),
+    E("installer-training", "Local installers want training", "Technicians in nearby towns ask {s} to train them to install and maintain systems.", { min: 6, launched: true, challenge: "clean-energy" }, [
+      ["Run a paid certification program", -2000, { reach: 4, impact: 3, sust: 3, rep: 2 }, "Training multiplies your capacity and creates local jobs.", { in: 2, cash: 4000, note: "Trainees began selling and installing your systems." }],
+      ["Train only your own staff", 0, { quality: 1 }, "Safe, but it forgoes a community multiplier."]
+    ]),
+    E("doctor-shortage", "A clinic loses its doctor", "A partner clinic's only doctor leaves, and patients turn to {s} for help.", { min: 4, challenge: "accessible-healthcare" }, [
+      ["Set up remote consultations with volunteer doctors", -1800, { impact: 5, reach: 3, rep: 2 }, "Technology can stretch scarce expertise further."],
+      ["Refer patients elsewhere", 0, { impact: -2, sat: -3 }, "Referral is safe but leaves patients stranded."],
+      ["Hire a nurse practitioner", -3500, { impact: 3, quality: 3, sust: 1 }, "Reliable local capacity is worth the cost."]
+    ]),
+    E("privacy-regulation", "Health data privacy rules", "New rules require stronger protection of patient data handled by {s}.", { min: 6, launched: true, challenge: "accessible-healthcare" }, [
+      ["Invest in encryption and a privacy review", -3000, { quality: 3, rep: 4, research: 2 }, "Protecting patient data is both a duty and a selling point."],
+      ["Do the bare minimum", -500, { rep: -1, quality: -1 }, "Minimum compliance leaves you exposed."],
+      ["Ignore the rules", 0, { rep: -6, sust: -3 }, "Data breaches in health destroy trust permanently."]
+    ]),
+    E("clinic-network", "A clinic network invites you", "A network of rural clinics invites {s} to join as its digital partner.", { min: 5, challenge: "accessible-healthcare" }, [
+      ["Join with a limited pilot first", -1000, { reach: 4, impact: 3, rep: 3 }, "Starting small proves value with less risk.", { in: 2, cash: 6000, note: "The pilot clinics began paying for the service." }],
+      ["Commit fully on day one", -3500, { reach: 6, impact: 4, morale: -3 }, "A big leap spreads the team thin."],
+      ["Decline for now", 0, {}, "You keep focus but miss a distribution channel."]
     ])
   ];
 

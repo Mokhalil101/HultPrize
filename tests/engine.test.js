@@ -1,6 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert");
-require("../js/data.js"); require("../js/engine.js"); require("../js/save.js");
+require("../js/data.js"); require("../js/i18n.js"); require("../js/engine.js"); require("../js/save.js");
 const E = globalThis.ST.Engine, D = globalThis.ST.Data, S = globalThis.ST.Save;
 
 const setup = (o) => E.newGame(Object.assign({ founderName: "Alex", startupName: "EcoLoop", description: "x", icon: "🌱", challengeId: "food-security", businessModel: "marketplace", difficulty: "normal", seed: 42 }, o || {}));
@@ -46,7 +46,7 @@ test("content quantities meet MVP minimums", () => {
 
 test("new game initialises resources per difficulty", () => {
   assert.strictEqual(setup({ difficulty: "easy" }).state.resources.capital, 150000);
-  assert.strictEqual(setup({ difficulty: "hard" }).state.resources.capital, 70000);
+  assert.strictEqual(setup({ difficulty: "hard" }).state.resources.capital, 85000);
   const s = setup().state; assert.strictEqual(s.resources.capital, 100000); assert.strictEqual(s.currentMonth, 1);
 });
 
@@ -136,4 +136,23 @@ test("save service validates, rejects corrupt data, exports/imports", () => {
 test("bankruptcy ends the game", () => {
   const s = setup().state; E.decide(s, s.decisionPending, 0); s.resources.capital = 500;
   const r = E.runMonth(s); assert.strictEqual(s.status, "ended"); assert.strictEqual(s.finalResult.ending, "bankrupt"); assert.ok(r.ok);
+});
+
+test("pitch over the time limit is penalised", () => {
+  const a = setup().state; a.currentChapter = 6; a.currentMonth = 8; E.startPitch(a); const b = JSON.parse(JSON.stringify(a));
+  for (let q = 0; q < 3; q++) E.answerPitch(a, q, 0, 30);
+  for (let q = 0; q < 3; q++) E.answerPitch(b, q, 0, E.PITCH_LIMIT + 60);
+  assert.strictEqual(a.pitch.overTime, false); assert.strictEqual(b.pitch.overTime, true); assert.ok(b.pitch.total < a.pitch.total);
+});
+
+test("challenge-specific events only appear for their own challenge", () => {
+  const own = D.EVENTS.filter(e => e.when && e.when.challenge);
+  assert.equal(own.length, 15);
+  for (const ch of D.CHALLENGES) assert.equal(own.filter(e => e.when.challenge === ch.id).length, 3);
+  for (let i = 0; i < 40; i++) {
+    const s = setup({ challengeId: "clean-water", businessModel: D.CHALLENGES.find(c => c.id === "clean-water").availableModels[0], difficulty: "hard", seed: 100 + i }).state;
+    s.currentMonth = 6; s.mvp.launched = true;
+    const id = E.rollEvent(s);
+    if (id) { const ev = D.EVENTS.find(e => e.id === id); assert.ok(!ev.when.challenge || ev.when.challenge === "clean-water"); }
+  }
 });
